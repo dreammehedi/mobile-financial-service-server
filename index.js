@@ -7,7 +7,15 @@ const port = process.env.PORT || 5000;
 const app = express();
 
 // middleware
-app.use(cors(["http://localhost:5173", "https://flexiwalled.surge.sh"]));
+app.use(
+  cors({
+    origin: [
+      "http://localhost:5173",
+      "https://flexiwalled.surge.sh",
+      "https://flexiwalled.vercel.app",
+    ],
+  })
+);
 app.use(express.json());
 
 // middleware user token authenticate in JWT
