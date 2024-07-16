@@ -47,9 +47,42 @@ async function run() {
         };
         await users.insertOne(user);
 
-        res.status(201).send("User registered. Pending admin approval!");
+        res.status(201).send({
+          message: "User registered. Pending admin approval!",
+          success: true,
+        });
       } catch (err) {
         res.status(400).send(err.message);
+      }
+    });
+
+    // login users
+    app.post("/api/login", async (req, res) => {
+      const { identifier, pin } = req.body;
+      try {
+        // find user register before login
+        const user = await users.findOne({
+          $or: [{ mobileNumber: identifier }, { email: identifier }],
+        });
+        if (!user) return res.status(400).send("User not found!");
+
+        // check user pin is match number and email register pin
+        const isPinValid = await bcrypt.compare(pin, user.pin);
+        if (!isPinValid) return res.status(400).send("Invalid PIN!");
+
+        // token payload
+        const tokenPayload = {
+          mobileNumber: user.mobileNumber,
+          email: user.email,
+        };
+
+        // create user token
+        const token = jwt.sign(tokenPayload, process.env.JWT_SECRET_KEY, {
+          expiresIn: process.env.JWT_EXPIRATION_TIME,
+        });
+        res.json({ token, success: true });
+      } catch (error) {
+        res.status(500).send("Internal Server Error!");
       }
     });
 
