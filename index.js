@@ -1,11 +1,16 @@
 const express = require("express");
 const cors = require("cors");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const app = express();
 
-// database configuration
+// middleware
+app.use(cors());
+app.use(express.json());
 
+// database configuration
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const uri = process.env.MONGODB_URI;
 
@@ -22,6 +27,32 @@ async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
+    // database
+    const database = client.db("MobileFinancialService");
+    const users = database.collection("users");
+
+    // register users
+    app.post("/api/register", async (req, res) => {
+      const { name, mobileNumber, email, pin } = req.body;
+      const hashedPin = await bcrypt.hash(pin, 10);
+
+      try {
+        const user = {
+          name,
+          mobileNumber,
+          email,
+          pin: hashedPin,
+          balance: 0,
+          status: "pending",
+        };
+        await users.insertOne(user);
+
+        res.status(201).send("User registered. Pending admin approval!");
+      } catch (err) {
+        res.status(400).send(err.message);
+      }
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
