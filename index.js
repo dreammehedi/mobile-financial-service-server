@@ -54,7 +54,7 @@ async function run() {
     const users = database.collection("users");
 
     // register users
-    app.post("/api/register", async (req, res) => {
+    app.post("/register", async (req, res) => {
       const { name, mobileNumber, email, pin, role } = req.body;
       const hashedPin = await bcrypt.hash(pin, 10);
 
@@ -87,7 +87,7 @@ async function run() {
     });
 
     // login users
-    app.post("/api/login", async (req, res) => {
+    app.post("/login", async (req, res) => {
       const { identifier, pin } = req.body;
       try {
         // find user register before login
@@ -118,7 +118,7 @@ async function run() {
     });
 
     // get user data
-    app.get("/api/users", authenticate, async (req, res) => {
+    app.get("/users", authenticate, async (req, res) => {
       try {
         // find user
         const user = await users.findOne({
