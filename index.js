@@ -14,6 +14,8 @@ app.use(
       "https://flexiwalled.surge.sh",
       "https://flexiwalled.vercel.app",
     ],
+    methods: "GET,HEAD,PUT,PATCH,POST,DELETE",
+    credentials: true,
   })
 );
 app.use(express.json());
