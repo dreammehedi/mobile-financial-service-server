@@ -7,7 +7,7 @@ const port = process.env.PORT || 5000;
 const app = express();
 
 // middleware
-app.use(cors());
+app.use(cors(["http://localhost:5173", "https://flexiwalled.surge.sh"]));
 app.use(express.json());
 
 // middleware user token authenticate in JWT
@@ -110,6 +110,7 @@ async function run() {
     // get user data
     app.get("/api/users", authenticate, async (req, res) => {
       try {
+        // find user
         const user = await users.findOne({
           $or: [
             { mobileNumber: req.user.mobileNumber },
