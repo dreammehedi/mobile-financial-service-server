@@ -10,6 +10,18 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// middleware user token authenticate in JWT
+const authenticate = (req, res, next) => {
+  const token = req.header("Authorization").replace("Bearer ", "");
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET_KEY);
+    req.user = decoded;
+    next();
+  } catch (err) {
+    res.status(401).send({ message: "Please authenticate!" });
+  }
+};
+
 // database configuration
 const { MongoClient, ServerApiVersion } = require("mongodb");
 const uri = process.env.MONGODB_URI;
@@ -25,22 +37,30 @@ const client = new MongoClient(uri, {
 
 async function run() {
   try {
-    // Connect the client to the server	(optional starting in v4.7)
     // await client.connect();
+
     // database
     const database = client.db("MobileFinancialService");
     const users = database.collection("users");
 
     // register users
     app.post("/api/register", async (req, res) => {
-      const { name, mobileNumber, email, pin } = req.body;
+      const { name, mobileNumber, email, pin, role } = req.body;
       const hashedPin = await bcrypt.hash(pin, 10);
 
       try {
+        // check if user already exists
+        const existingUser = await users.findOne({
+          $or: [{ mobileNumber }, { email }],
+        });
+        if (existingUser)
+          return res.status(400).send({ message: "User already exists!" });
+
         const user = {
           name,
           mobileNumber,
           email,
+          role,
           pin: hashedPin,
           balance: 0,
           status: "pending",
@@ -64,11 +84,12 @@ async function run() {
         const user = await users.findOne({
           $or: [{ mobileNumber: identifier }, { email: identifier }],
         });
-        if (!user) return res.status(400).send("User not found!");
+        if (!user) return res.status(400).send({ message: "User not found!" });
 
         // check user pin is match number and email register pin
         const isPinValid = await bcrypt.compare(pin, user.pin);
-        if (!isPinValid) return res.status(400).send("Invalid PIN!");
+        if (!isPinValid)
+          return res.status(400).send({ message: "An error occurred!" });
 
         // token payload
         const tokenPayload = {
@@ -82,7 +103,29 @@ async function run() {
         });
         res.json({ token, success: true });
       } catch (error) {
-        res.status(500).send("Internal Server Error!");
+        res.status(500).send({ message: "Internal Server Error!" });
+      }
+    });
+
+    // get user data
+    app.get("/api/users", authenticate, async (req, res) => {
+      try {
+        const user = await users.findOne({
+          $or: [
+            { mobileNumber: req.user.mobileNumber },
+            { email: req.user.email },
+          ],
+        });
+        if (!user) return res.status(404).send({ message: "User not found!" });
+        res.json({
+          name: user.name,
+          email: user.email,
+          mobileNumber: user.mobileNumber,
+          balance: user.balance,
+          role: user.role,
+        });
+      } catch (error) {
+        res.status(500).send({ message: "Internal Server Error!" });
       }
     });
 
