@@ -346,6 +346,14 @@ async function run() {
       }
     });
 
+    // get all transactions history in user
+    app.get("/all-transactions-history", authenticate, async (req, res) => {
+      const user = req?.user?.mobileNumber;
+      const query = { senderId: user };
+      const result = await transactions.find(query).toArray();
+      res.send(result);
+    });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
