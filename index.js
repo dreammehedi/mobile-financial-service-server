@@ -54,6 +54,7 @@ async function run() {
     const database = client.db("MobileFinancialService");
     const users = database.collection("users");
     const transactions = database.collection("transactions");
+    const cashInAgent = database.collection("cashInAgent");
 
     // register users
     app.post("/register", async (req, res) => {
@@ -404,6 +405,43 @@ async function run() {
         });
 
         res.send({ message: "Transaction successful", transactionId });
+      } catch (err) {
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
+
+    // user cash out
+    app.post("/user-cash-in", authenticate, async (req, res) => {
+      try {
+        const { recipient, amount, PIN } = req.body;
+        const userMobileNumber = req?.user?.mobileNumber;
+
+        // Verify user pin and JWT token
+        const userPin = await verifyUserPin(userMobileNumber, PIN);
+        if (!userPin) {
+          return res.status(401).send({ message: "Invalid PIN!" });
+        }
+
+        // check if recipient is the agent
+        const userAgent = await verifyAgent(recipient);
+        if (!userAgent) {
+          return res.status(403).send({
+            message:
+              "Reciver is not agent! Please provide a valid agent number!",
+          });
+        }
+
+        const cashInUserRequestAgent = {
+          senderNumber: userMobileNumber,
+          agentNumber: recipient,
+          amount,
+          date: new Date(),
+          type: "cash-in",
+        };
+
+        // Update the recipient's balance
+        const result = await cashInAgent.insertOne(cashInUserRequestAgent);
+        res.send(result);
       } catch (err) {
         res.status(500).send({ message: "Internal server error" });
       }
