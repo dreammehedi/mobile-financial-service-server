@@ -129,11 +129,12 @@ async function run() {
         });
         if (!user) return res.status(404).send({ message: "User not found!" });
         res.json({
-          name: user.name,
-          email: user.email,
-          mobileNumber: user.mobileNumber,
-          balance: user.balance,
-          role: user.role,
+          name: user?.name,
+          email: user?.email,
+          mobileNumber: user?.mobileNumber,
+          balance: user?.balance,
+          role: user?.role,
+          status: user?.status,
         });
       } catch (error) {
         res.status(500).send({ message: "Internal Server Error!" });
@@ -164,6 +165,7 @@ async function run() {
       const usersData = await users.find().toArray();
       res.send(usersData);
     });
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
