@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
+const { v4: uuidv4 } = require("uuid");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
 const app = express();
@@ -52,6 +53,7 @@ async function run() {
     // database
     const database = client.db("MobileFinancialService");
     const users = database.collection("users");
+    const transactions = database.collection("transactions");
 
     // register users
     app.post("/register", async (req, res) => {
@@ -277,6 +279,72 @@ async function run() {
         res.send(result);
       }
     );
+
+    // verify user pin
+    const verifyUserPin = async (mobileNumber, pin) => {
+      const user = await users.findOne({ mobileNumber });
+      if (!user) return null;
+      const isPinValid = await bcrypt.compare(pin, user?.pin);
+      return isPinValid ? user : null;
+    };
+
+    // verify user balance
+    const verifyBalance = async (mobileNumber, amount) => {
+      const user = await users.findOne({ mobileNumber });
+      if (!user) return false;
+      return user.balance >= amount;
+    };
+
+    // user send money
+    app.post("/user-send-money", authenticate, async (req, res) => {
+      try {
+        const { recipient, amount, PIN } = req.body;
+
+        const userMobileNumber = req?.user?.mobileNumber;
+
+        // Verify user pin and JWT token
+        const userPin = await verifyUserPin(userMobileNumber, PIN);
+
+        if (!userPin) {
+          return res.status(401).send({ message: "Invalid PIN!" });
+        }
+
+        // check user has enough balance
+        const userBalance = await verifyBalance(userMobileNumber, amount);
+        if (!userBalance) {
+          return res.status(403).send({ message: "Insufficient balance!" });
+        }
+
+        // Generate a unique transaction ID
+        const transactionId = uuidv4();
+
+        // Update the recipient's balance
+        await users.updateOne(
+          { mobileNumber: recipient },
+          { $inc: { balance: amount } }
+        );
+
+        // Update the sender's balance
+        await users.updateOne(
+          { mobileNumber: req?.user?.mobileNumber },
+          { $inc: { balance: -amount } }
+        );
+
+        // Record the transaction
+        await transactions.insertOne({
+          transactionId,
+          senderId: req?.user?.mobileNumber,
+          recipient,
+          amount,
+          date: new Date(),
+          type: "send-money",
+        });
+
+        res.send({ message: "Transaction successful", transactionId });
+      } catch (err) {
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
 
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
