@@ -140,6 +140,30 @@ async function run() {
       }
     });
 
+    // verify admin
+    const verifyAdmin = async (req, res, next) => {
+      try {
+        const userMobileNumber = req?.user?.mobileNumber;
+        const userEmail = req?.user?.email;
+
+        // find user is valid before data get
+        const user = await users.findOne({
+          $or: [{ mobileNumber: userMobileNumber }, { email: userEmail }],
+        });
+
+        if (user?.role === "admin") {
+          next();
+        }
+      } catch (err) {
+        res.status(403).send({ message: "Access denied!" });
+      }
+    };
+
+    // get all users
+    app.get("/all-users", authenticate, verifyAdmin, async (req, res) => {
+      const usersData = await users.find().toArray();
+      res.send(usersData);
+    });
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
