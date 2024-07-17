@@ -166,6 +166,77 @@ async function run() {
       res.send(usersData);
     });
 
+    // admin activate user account
+    app.patch(
+      "/user-active/:email",
+      authenticate,
+      verifyAdmin,
+      async (req, res) => {
+        // get user email
+        const email = req.params.email;
+
+        // query user
+        const query = { email: email };
+
+        // Check if the user exists
+        const existingUser = await users.findOne(query);
+
+        if (!existingUser) {
+          return res.status(404).send({ message: "User not found!" });
+        }
+
+        // Check the current status
+        if (existingUser.status === "active") {
+          return res
+            .status(400)
+            .send({ message: "Account is already active!" });
+        }
+
+        // updated status and balance
+        let updatedStates;
+        if (existingUser.status === "pending") {
+          updatedStates = {
+            $set: {
+              status: "active",
+              balance: 40,
+            },
+          };
+        } else {
+          updatedStates = {
+            $set: {
+              status: "active",
+            },
+          };
+        }
+
+        const result = await users.updateOne(query, updatedStates);
+        res.send(result);
+      }
+    );
+
+    // admin blocked user account
+    app.patch(
+      "/user-block/:email",
+      authenticate,
+      verifyAdmin,
+      async (req, res) => {
+        // get user email
+        const email = req.params.email;
+
+        // query user
+        const query = { email: email };
+        // updated states
+        const updatedStates = {
+          $set: {
+            status: "blocked",
+          },
+        };
+
+        const result = await users.updateOne(query, updatedStates);
+        res.send(result);
+      }
+    );
+
     // Send a ping to confirm a successful connection
     await client.db("admin").command({ ping: 1 });
     console.log(
