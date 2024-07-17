@@ -54,7 +54,7 @@ async function run() {
     const database = client.db("MobileFinancialService");
     const users = database.collection("users");
     const transactions = database.collection("transactions");
-    const cashInAgent = database.collection("cashInAgent");
+    const cashInOutAgent = database.collection("cashInOutAgent");
 
     // register users
     app.post("/register", async (req, res) => {
@@ -380,37 +380,24 @@ async function run() {
           });
         }
 
-        // Generate a unique transaction ID
-        const transactionId = uuidv4();
-        // Update the recipient's balance
-        await users.updateOne(
-          { mobileNumber: recipient },
-          { $inc: { balance: totalAmount } }
-        );
-
-        // Update the sender's balance
-        await users.updateOne(
-          { mobileNumber: req?.user?.mobileNumber },
-          { $inc: { balance: -totalAmount } }
-        );
-
-        // Record the transaction
-        await transactions.insertOne({
-          transactionId,
-          senderId: req?.user?.mobileNumber,
-          recipient,
+        const cashOutUserRequestAgent = {
+          senderNumber: userMobileNumber,
+          agentNumber: recipient,
           amount: totalAmount,
           date: new Date(),
           type: "cash-out",
-        });
+          status: "pending",
+        };
 
-        res.send({ message: "Transaction successful", transactionId });
+        // Update the recipient's balance
+        const result = await cashInOutAgent.insertOne(cashOutUserRequestAgent);
+        res.send(result);
       } catch (err) {
         res.status(500).send({ message: "Internal server error" });
       }
     });
 
-    // user cash out
+    // user cash in
     app.post("/user-cash-in", authenticate, async (req, res) => {
       try {
         const { recipient, amount, PIN } = req.body;
@@ -437,10 +424,11 @@ async function run() {
           amount,
           date: new Date(),
           type: "cash-in",
+          status: "pending",
         };
 
         // Update the recipient's balance
-        const result = await cashInAgent.insertOne(cashInUserRequestAgent);
+        const result = await cashInOutAgent.insertOne(cashInUserRequestAgent);
         res.send(result);
       } catch (err) {
         res.status(500).send({ message: "Internal server error" });
@@ -457,6 +445,128 @@ async function run() {
         .limit(10)
         .toArray();
       res.send(result);
+    });
+
+    // cash in or out transaction request
+    app.get("/cash-in-or-out-request", authenticate, async (req, res) => {
+      const agentNumber = req?.user?.mobileNumber;
+      const query = { agentNumber: agentNumber };
+      const result = await cashInOutAgent
+        .find(query)
+        .sort({ date: -1 })
+        .limit(20)
+        .toArray();
+      res.send(result);
+    });
+
+    // cash in appprove agent
+    app.patch("/cash-in-out-approve-agent", authenticate, async (req, res) => {
+      try {
+        const approveData = req.body;
+        const { senderNumber, agentNumber, amount, type } = approveData;
+
+        // Find cash-in request user
+        const cashInUser = await users.findOne({
+          mobileNumber: senderNumber,
+        });
+        if (!cashInUser) {
+          return res.status(404).send({ message: "User not found!" });
+        }
+
+        // Find approving agent
+        const findAgent = await users.findOne({
+          mobileNumber: agentNumber,
+        });
+        if (!findAgent) {
+          return res.status(404).send({ message: "Agent not found!" });
+        }
+
+        // Check if the agent has enough balance
+        if (findAgent.balance < amount) {
+          return res.status(403).send({ message: "Insufficient balance!" });
+        }
+
+        // Generate a unique transaction ID
+        const transactionId = uuidv4();
+        // cash in
+        if (type === "cash-in") {
+          //  Add amount to user balance and deduct from agent balance
+          await users.updateOne(
+            { mobileNumber: senderNumber },
+            { $inc: { balance: amount } }
+          );
+
+          await users.updateOne(
+            { mobileNumber: agentNumber },
+            { $inc: { balance: -amount } }
+          );
+
+          await cashInOutAgent.updateOne(
+            {
+              senderNumber,
+              agentNumber,
+              amount,
+            },
+            {
+              $set: { status: "approved" },
+            }
+          );
+          // Record the transaction
+          await transactions.insertOne({
+            transactionId,
+            userId: cashInUser._id,
+            agentId: findAgent._id,
+            amount,
+            type: "cash-in",
+            date: new Date(),
+            status: "approved",
+          });
+
+          return res.send({ success: true, message: "Cash-in approved." });
+        }
+
+        // cash out
+        if (type === "cash-out") {
+          //  deduct amount from user balance and add to agent balance
+          await users.updateOne(
+            { mobileNumber: senderNumber },
+            { $inc: { balance: -amount } }
+          );
+
+          await users.updateOne(
+            { mobileNumber: agentNumber },
+            { $inc: { balance: amount } }
+          );
+
+          await cashInOutAgent.updateOne(
+            {
+              senderNumber,
+              agentNumber,
+              amount,
+            },
+            {
+              $set: { status: "approved" },
+            }
+          );
+
+          // Record the transaction
+          await transactions.insertOne({
+            transactionId,
+            userId: cashInUser._id,
+            agentId: findAgent._id,
+            amount,
+            type: "cash-out",
+            date: new Date(),
+            status: "approved",
+          });
+
+          return res.send({ success: true, message: "Cash-out approved." });
+        }
+
+        return res.status(400).send({ message: "Invalid transaction type!" });
+      } catch (err) {
+        res.status(500).send({ message: "Internal server error!" });
+      }
     });
 
     // Send a ping to confirm a successful connection
