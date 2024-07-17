@@ -295,6 +295,12 @@ async function run() {
       return user.balance >= amount;
     };
 
+    // verify user is agent
+    const verifyAgent = async (mobileNumber) => {
+      const user = await users.findOne({ mobileNumber });
+      return user?.role === "agent";
+    };
+
     // user send money
     app.post("/user-send-money", authenticate, async (req, res) => {
       try {
@@ -338,6 +344,63 @@ async function run() {
           amount,
           date: new Date(),
           type: "send-money",
+        });
+
+        res.send({ message: "Transaction successful", transactionId });
+      } catch (err) {
+        res.status(500).send({ message: "Internal server error" });
+      }
+    });
+
+    // user cash out
+    app.post("/user-cash-out", authenticate, async (req, res) => {
+      try {
+        const { recipient, totalAmount, PIN } = req.body;
+        const userMobileNumber = req?.user?.mobileNumber;
+
+        // Verify user pin and JWT token
+        const userPin = await verifyUserPin(userMobileNumber, PIN);
+        if (!userPin) {
+          return res.status(401).send({ message: "Invalid PIN!" });
+        }
+
+        // check user has enough balance
+        const userBalance = await verifyBalance(userMobileNumber, totalAmount);
+        if (!userBalance) {
+          return res.status(403).send({ message: "Insufficient balance!" });
+        }
+
+        // check if recipient is the agent
+        const userAgent = await verifyAgent(recipient);
+        if (!userAgent) {
+          return res.status(403).send({
+            message:
+              "Reciver is not agent! Please provide a valid agent number!",
+          });
+        }
+
+        // Generate a unique transaction ID
+        const transactionId = uuidv4();
+        // Update the recipient's balance
+        await users.updateOne(
+          { mobileNumber: recipient },
+          { $inc: { balance: totalAmount } }
+        );
+
+        // Update the sender's balance
+        await users.updateOne(
+          { mobileNumber: req?.user?.mobileNumber },
+          { $inc: { balance: -totalAmount } }
+        );
+
+        // Record the transaction
+        await transactions.insertOne({
+          transactionId,
+          senderId: req?.user?.mobileNumber,
+          recipient,
+          amount: totalAmount,
+          date: new Date(),
+          type: "cash-out",
         });
 
         res.send({ message: "Transaction successful", transactionId });
