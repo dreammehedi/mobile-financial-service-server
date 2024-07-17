@@ -111,7 +111,8 @@ async function run() {
         const token = jwt.sign(tokenPayload, process.env.JWT_SECRET_KEY, {
           expiresIn: process.env.JWT_EXPIRATION_TIME,
         });
-        res.json({ token, success: true });
+
+        res.json({ token, status: user?.status, success: true });
       } catch (error) {
         res.status(500).send({ message: "Internal Server Error!" });
       }
