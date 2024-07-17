@@ -193,8 +193,6 @@ async function run() {
           result = await users.find().toArray();
           res.send(result);
         }
-
-        console.log(result);
       } catch (err) {
         console.error(err);
         res.status(500).send({ message: "Server Error!" });
@@ -436,16 +434,16 @@ async function run() {
     });
 
     // get all transactions history in user
-    app.get("/all-transactions-history", authenticate, async (req, res) => {
-      const user = req?.user?.mobileNumber;
-      const query = { senderId: user };
-      const result = await transactions
-        .find(query)
-        .sort({ date: -1 })
-        .limit(10)
-        .toArray();
-      res.send(result);
-    });
+    // app.get("/all-transactions-history", authenticate, async (req, res) => {
+    //   const user = req?.user?.mobileNumber;
+    //   const query = { senderId: user };
+    //   const result = await transactions
+    //     .find(query)
+    //     .sort({ date: -1 })
+    //     .limit(10)
+    //     .toArray();
+    //   res.send(result);
+    // });
 
     // cash in or out transaction request
     app.get("/cash-in-or-out-request", authenticate, async (req, res) => {
