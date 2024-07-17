@@ -161,7 +161,7 @@ async function run() {
     };
 
     // get all users
-    app.get("/all-users", authenticate, verifyAdmin, async (req, res) => {
+    app.get("/all-users", async (req, res) => {
       const usersData = await users.find().toArray();
       res.send(usersData);
     });
@@ -169,8 +169,7 @@ async function run() {
     // admin activate user account
     app.patch(
       "/user-active/:email",
-      authenticate,
-      verifyAdmin,
+
       async (req, res) => {
         // get user email
         const email = req.params.email;
@@ -194,11 +193,21 @@ async function run() {
 
         // updated status and balance
         let updatedStates;
-        if (existingUser.status === "pending") {
+        if (existingUser.status === "pending" && existingUser.role === "user") {
           updatedStates = {
             $set: {
               status: "active",
               balance: 40,
+            },
+          };
+        } else if (
+          existingUser.status === "pending" &&
+          existingUser.role === "agent"
+        ) {
+          updatedStates = {
+            $set: {
+              status: "active",
+              balance: 10000,
             },
           };
         } else {
