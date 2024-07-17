@@ -34,7 +34,7 @@ const authenticate = (req, res, next) => {
 };
 
 // database configuration
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri = process.env.MONGODB_URI;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
@@ -434,16 +434,28 @@ async function run() {
     });
 
     // get all transactions history in user
-    // app.get("/all-transactions-history", authenticate, async (req, res) => {
-    //   const user = req?.user?.mobileNumber;
-    //   const query = { senderId: user };
-    //   const result = await transactions
-    //     .find(query)
-    //     .sort({ date: -1 })
-    //     .limit(10)
-    //     .toArray();
-    //   res.send(result);
-    // });
+    app.get("/all-transactions-history", authenticate, async (req, res) => {
+      try {
+        const userMobileNumber = req?.user?.mobileNumber;
+
+        const getUserId = await users.findOne({
+          mobileNumber: userMobileNumber,
+        });
+
+        const query = {
+          $or: [{ senderId: userMobileNumber }, { userId: getUserId?._id }],
+        };
+
+        const result = await transactions
+          .find(query)
+          .sort({ date: -1 })
+          .limit(10)
+          .toArray();
+        res.send(result);
+      } catch (err) {
+        res.status(500).send({ message: "Internal server error!" });
+      }
+    });
 
     // cash in or out transaction request
     app.get("/cash-in-or-out-request", authenticate, async (req, res) => {
