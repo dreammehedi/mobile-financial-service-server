@@ -350,7 +350,11 @@ async function run() {
     app.get("/all-transactions-history", authenticate, async (req, res) => {
       const user = req?.user?.mobileNumber;
       const query = { senderId: user };
-      const result = await transactions.find(query).toArray();
+      const result = await transactions
+        .find(query)
+        .sort({ date: -1 })
+        .limit(10)
+        .toArray();
       res.send(result);
     });
 
