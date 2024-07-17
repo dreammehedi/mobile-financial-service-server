@@ -161,9 +161,40 @@ async function run() {
     };
 
     // get all users
-    app.get("/all-users", async (req, res) => {
-      const usersData = await users.find().toArray();
-      res.send(usersData);
+    app.get("/all-users", authenticate, verifyAdmin, async (req, res) => {
+      // user idetified
+      const userSearchValue = req.query.userFind;
+
+      try {
+        let result;
+
+        if (userSearchValue) {
+          // Find user based on search value
+          result = await users
+            .find({
+              $or: [
+                { mobileNumber: new RegExp(userSearchValue, "i") }, // Case-insensitive search
+                { email: new RegExp(userSearchValue, "i") },
+              ],
+            })
+            .toArray(); // Convert to array for consistent response
+
+          if (result.length > 0) {
+            res.send(result);
+          } else {
+            res.send({ message: "User not found!" });
+          }
+        } else {
+          // Fetch all users if no search value is provided
+          result = await users.find().toArray();
+          res.send(result);
+        }
+
+        console.log(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: "Server Error!" });
+      }
     });
 
     // admin activate user account
