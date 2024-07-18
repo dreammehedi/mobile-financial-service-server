@@ -304,6 +304,7 @@ async function run() {
     app.post("/user-send-money", authenticate, async (req, res) => {
       try {
         const { recipient, amount, PIN } = req.body;
+        console.log(recipient);
 
         const userMobileNumber = req?.user?.mobileNumber;
 
@@ -318,6 +319,12 @@ async function run() {
         const userBalance = await verifyBalance(userMobileNumber, amount);
         if (!userBalance) {
           return res.status(403).send({ message: "Insufficient balance!" });
+        }
+
+        // check recipient user
+        const recipientUser = await users.findOne({ mobileNumber: recipient });
+        if (!recipientUser) {
+          return res.status(404).send({ message: "User not found!" });
         }
 
         // Generate a unique transaction ID
@@ -524,8 +531,8 @@ async function run() {
           // Record the transaction
           await transactions.insertOne({
             transactionId,
-            userId: cashInUser._id,
-            agentId: findAgent._id,
+            senderId: senderNumber,
+            recipiend: agentNumber,
             amount,
             type: "cash-in",
             date: new Date(),
