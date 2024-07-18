@@ -304,7 +304,6 @@ async function run() {
     app.post("/user-send-money", authenticate, async (req, res) => {
       try {
         const { recipient, amount, PIN } = req.body;
-        console.log(recipient);
 
         const userMobileNumber = req?.user?.mobileNumber;
 
@@ -569,8 +568,8 @@ async function run() {
           // Record the transaction
           await transactions.insertOne({
             transactionId,
-            userId: cashInUser._id,
-            agentId: findAgent._id,
+            senderId: senderNumber,
+            recipiend: agentNumber,
             amount,
             type: "cash-out",
             date: new Date(),
