@@ -4,6 +4,10 @@
 
 This project is a backend service for a basic Mobile Financial Service (MFS) application similar to bKash or Nagad. It handles user authentication, transactions, and data management.
 
+## Live Link
+
+- [Vercel Live Link](https://flexiwalled-server.vercel.app)
+
 ## Features
 
 ### User
@@ -44,14 +48,16 @@ This project is a backend service for a basic Mobile Financial Service (MFS) app
 
 1. Clone the repository:
 
-```bash
-    git clone https://github.com/dreammehedi/mobile-financial-service-server.git
+   ```bash
+       git clone https://github.com/dreammehedi/mobile-financial-service-server.git
 
-```
+   ```
 
 2. Install dependencies:
 
-- **npm install**
+   ```bash
+       npm install
+   ```
 
 3. Create a .env file and add your environment variables:
 
@@ -60,8 +66,12 @@ This project is a backend service for a basic Mobile Financial Service (MFS) app
    - JWT_EXPIRATION_TIME = '1h'
 
 4. Start the development server:
-   - npm start
-   - The application will be available at http://localhost:5000
+
+   ```bash
+       npm start
+   ```
+
+- The application will be available at http://localhost:5000
 
 ## Usage
 
