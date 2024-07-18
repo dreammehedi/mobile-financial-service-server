@@ -463,6 +463,17 @@ async function run() {
       }
     });
 
+    // admin all transaction history get
+    app.get(
+      "/admin-all-transactions-history",
+      authenticate,
+      verifyAdmin,
+      async (req, res) => {
+        const result = await transactions.find().toArray();
+        res.send(result);
+      }
+    );
+
     // cash in or out transaction request
     app.get("/cash-in-or-out-request", authenticate, async (req, res) => {
       const agentNumber = req?.user?.mobileNumber;
